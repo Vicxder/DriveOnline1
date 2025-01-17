@@ -52,20 +52,10 @@
     <!-- Visualización del comando seleccionado -->
     <div id="status">Comando actual: Ninguno</div>
 
-    <!-- Contenedor para el video en vivo -->
-    <div id="video-container">
-        <img id="video-feed" src="" alt="Transmisión de Video" />
-    </div>
-
     <script>
-        const SERVER_URL = "https://flaskserver1.onrender.com"; // URL del servidor Flask
-        const WS_URL = "wss://flaskserver1.onrender.com/socket.io"; // URL del WebSocket
+        const WS_URL = "wss://" + window.location.host; // Usar el host actual
         const statusDisplay = document.getElementById('status');
-        const videoFeed = document.getElementById('video-feed');
         let socket;
-
-        // Configura la URL del video
-        videoFeed.src = `${SERVER_URL}/video_feed`;
 
         // Inicializar WebSocket
         function initializeWebSocket() {
@@ -105,32 +95,8 @@
                 socket.send(JSON.stringify({ command: command }));
                 updateStatus(`Comando enviado: ${command}`);
             } else {
-                console.error("WebSocket no conectado. Usando HTTP.");
-                sendCommandViaHTTP(command); // Fallback a HTTP si WebSocket no está disponible
+                console.error("WebSocket no conectado.");
             }
-        }
-
-        // Enviar comandos vía HTTP
-        function sendCommandViaHTTP(command) {
-            fetch(`${SERVER_URL}/control`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ command: command })
-            })
-            .then(response => {
-                if (response.ok) {
-                    console.log(`Comando enviado vía HTTP: ${command}`);
-                } else {
-                    console.error('Error enviando comando vía HTTP');
-                    updateStatus("Error al enviar el comando vía HTTP");
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                updateStatus("Error en la conexión HTTP");
-            });
         }
 
         // Actualizar el comando en la pantalla
