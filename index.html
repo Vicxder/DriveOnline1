@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Auto RC</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .button {
+            padding: 20px 40px;
+            margin: 10px;
+            font-size: 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+        }
+        .button:active {
+            background-color: #0056b3;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 24px;
+            color: #333;
+        }
+        #video-container {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Control de Auto RC</h1>
+    
+    <!-- Botones -->
+    <div>
+        <button class="button" id="forward" onclick="sendCommand('forward')">Adelante</button>
+    </div>
+    <div>
+        <button class="button" id="left" onclick="sendCommand('left')">Izquierda</button>
+        <button class="button" id="stop" onclick="sendCommand('stop')">Detener</button>
+        <button class="button" id="right" onclick="sendCommand('right')">Derecha</button>
+    </div>
+    <div>
+        <button class="button" id="backward" onclick="sendCommand('backward')">Atrás</button>
+    </div>
+    
+    <!-- Visualización del comando seleccionado -->
+    <div id="status">Comando actual: Ninguno</div>
+
+    <!-- Contenedor para el video en vivo -->
+    <div id="video-container">
+        <img id="video-feed" src="" alt="Transmisión de Video" />
+    </div>
+
+    <script>
+        const SERVER_URL = "https://flaskserver-1.onrender.com"; // URL del servidor Flask
+        const WS_URL = "wss://flaskserver-1.onrender.com/socket.io"; // URL del WebSocket
+        const statusDisplay = document.getElementById('status');
+        const videoFeed = document.getElementById('video-feed');
+        let socket;
+
+        // Configura la URL del video
+        videoFeed.src = `${SERVER_URL}/video_feed`;
+
+        // Inicializar WebSocket
+        function initializeWebSocket() {
+            socket = new WebSocket(WS_URL);
+
+            socket.onopen = () => {
+                console.log("Conexión WebSocket establecida");
+                updateStatus("Conectado al servidor");
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log("Mensaje recibido:", data);
+                    updateStatus(`Respuesta del servidor: ${data.message}`);
+                } catch (error) {
+                    console.error("Error al procesar el mensaje:", error);
+                    updateStatus("Error al procesar el mensaje del servidor");
+                }
+            };
+
+            socket.onclose = () => {
+                console.error("Conexión WebSocket cerrada");
+                updateStatus("Conexión cerrada, reconectando...");
+                setTimeout(initializeWebSocket, 3000); // Reintenta la reconexión después de 3 segundos
+            };
+
+            socket.onerror = (error) => {
+                console.error("Error en WebSocket:", error);
+                updateStatus("Error en la conexión WebSocket");
+            };
+        }
+
+        // Enviar comandos al servidor
+        function sendCommand(command) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ command: command }));
+                updateStatus(`Comando enviado: ${command}`);
+            } else {
+                console.error("WebSocket no conectado. Usando HTTP.");
+                sendCommandViaHTTP(command); // Fallback a HTTP si WebSocket no está disponible
+            }
+        }
+
+        // Enviar comandos vía HTTP
+        function sendCommandViaHTTP(command) {
+            fetch(`${SERVER_URL}/control`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ command: command })
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log(`Comando enviado vía HTTP: ${command}`);
+                } else {
+                    console.error('Error enviando comando vía HTTP');
+                    updateStatus("Error al enviar el comando vía HTTP");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                updateStatus("Error en la conexión HTTP");
+            });
+        }
+
+        // Actualizar el comando en la pantalla
+        function updateStatus(message) {
+            statusDisplay.textContent = message;
+        }
+
+        // Iniciar la conexión WebSocket
+        initializeWebSocket();
+    </script>
+</body>
+</html>
